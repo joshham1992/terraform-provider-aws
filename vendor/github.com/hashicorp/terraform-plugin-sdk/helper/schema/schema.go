@@ -239,6 +239,9 @@ type Schema struct {
 
 	// When Removed is set, this attribute has been removed from the schema
 	//
+	// Deprecated: This field will be removed in version 2 without replacement
+	// as the functionality is not necessary.
+	//
 	// Removed attributes can be left in the Schema to generate informative error
 	// messages for the user when they show up in resource configurations.
 	// This string is the message shown to the user with instructions on
@@ -770,28 +773,28 @@ func (m schemaMap) internalValidate(topSchemaMap schemaMap, attrsOnly bool) erro
 		}
 
 		if len(v.ConflictsWith) > 0 {
-			err := checkKeysAgainstSchemaFlags(k, v.ConflictsWith, topSchemaMap, v)
+			err := checkKeysAgainstSchemaFlags(k, v.ConflictsWith, topSchemaMap, v, false)
 			if err != nil {
 				return fmt.Errorf("ConflictsWith: %+v", err)
 			}
 		}
 
 		if len(v.RequiredWith) > 0 {
-			err := checkKeysAgainstSchemaFlags(k, v.RequiredWith, topSchemaMap, v)
+			err := checkKeysAgainstSchemaFlags(k, v.RequiredWith, topSchemaMap, v, true)
 			if err != nil {
 				return fmt.Errorf("RequiredWith: %+v", err)
 			}
 		}
 
 		if len(v.ExactlyOneOf) > 0 {
-			err := checkKeysAgainstSchemaFlags(k, v.ExactlyOneOf, topSchemaMap, v)
+			err := checkKeysAgainstSchemaFlags(k, v.ExactlyOneOf, topSchemaMap, v, true)
 			if err != nil {
 				return fmt.Errorf("ExactlyOneOf: %+v", err)
 			}
 		}
 
 		if len(v.AtLeastOneOf) > 0 {
-			err := checkKeysAgainstSchemaFlags(k, v.AtLeastOneOf, topSchemaMap, v)
+			err := checkKeysAgainstSchemaFlags(k, v.AtLeastOneOf, topSchemaMap, v, true)
 			if err != nil {
 				return fmt.Errorf("AtLeastOneOf: %+v", err)
 			}
@@ -860,7 +863,7 @@ func (m schemaMap) internalValidate(topSchemaMap schemaMap, attrsOnly bool) erro
 	return nil
 }
 
-func checkKeysAgainstSchemaFlags(k string, keys []string, topSchemaMap schemaMap, self *Schema) error {
+func checkKeysAgainstSchemaFlags(k string, keys []string, topSchemaMap schemaMap, self *Schema, allowSelfReference bool) error {
 	for _, key := range keys {
 		parts := strings.Split(key, ".")
 		sm := topSchemaMap
@@ -899,10 +902,9 @@ func checkKeysAgainstSchemaFlags(k string, keys []string, topSchemaMap schemaMap
 			return fmt.Errorf("%s cannot find target attribute (%s), sm: %#v", k, key, sm)
 		}
 
-		/*
-		if target == self {
+		if target == self && !allowSelfReference {
 			return fmt.Errorf("%s cannot reference self (%s)", k, key)
-		}*/
+		}
 
 		if target.Required {
 			return fmt.Errorf("%s cannot contain Required attribute (%s)", k, key)
@@ -912,6 +914,7 @@ func checkKeysAgainstSchemaFlags(k string, keys []string, topSchemaMap schemaMap
 			return fmt.Errorf("%s cannot contain Computed(When) attribute (%s)", k, key)
 		}
 	}
+
 	return nil
 }
 
